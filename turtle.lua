@@ -24,7 +24,7 @@ local turtle = {
 -- init: create canvas and set defaults
 function turtle.init()
     local w,h = love.graphics.getDimensions()
-    turtle.canvas = love.graphics.newCanvas(w,h, {msaa = turtle.msaa})
+    turtle.canvas = love.graphics.newCanvas(w,h, {msaa = turtle.msaa}) -- set turtle.canvas equal to a newCanvas(w, h, antiAliasing)
     love.graphics.setLineStyle("smooth")
     love.graphics.setLineJoin("miter")
     turtle.reset()
@@ -96,11 +96,6 @@ end
 
 function turtle.pensize(self, s)
     if type(s) == "number" then self.penSize = s end
-end
-
--- LUKE FUNCTION
-function turtle.setbackgroundcolor(red, green, blue, alpha)
-    love.graphics.setBackgroundColor(red, green, blue, alpha)
 end
 
 function turtle.set_move_speed(self, v) self.base_move_speed = tonumber(v) or self.base_move_speed end

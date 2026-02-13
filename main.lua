@@ -83,7 +83,6 @@ local function make_sandbox_env()
     env.pencolor = function(...) return turtle.pencolor(turtle, ...) end
     env.pensize = function(...) return turtle.pensize(turtle, ...) end
     env.speed = function(...) return turtle.speed(turtle, ...) end
-    env.setbackgroundcolor = function(...) return turtle.setbackgroundcolor(...) end
 
     return env
 end
@@ -93,7 +92,7 @@ local function ensure_commands_file()
 
     -- Seed a friendly starter file.
     local starter = [[
--- example.lua
+-- commands.lua
 -- Edit this file in any text editor. The app will auto-reload on save.
 -- Tip: click "Open Folder" in the overlay to find this file quickly.
 -- The turtle uses four basic commands: forward, back, left, and right

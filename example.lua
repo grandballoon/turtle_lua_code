@@ -21,5 +21,9 @@ function square2()
         rt(90)
     end
 end
-
+pencolor(245, 0, 0)
+square2()
+rt(90)
+fd(50)
+pensize(30)
 square2()
