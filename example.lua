@@ -15,15 +15,6 @@ function square()
     right(90)
 end
 
-function square2()
-    for i=1,4 do
-        fd(100)
-        rt(90)
-    end
-end
-pencolor(245, 0, 0)
-square2()
-rt(90)
-fd(50)
-pensize(30)
-square2()
+fd(100)
+rt(360)
+square()
