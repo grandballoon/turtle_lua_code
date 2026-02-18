@@ -6,6 +6,20 @@ local executor = require "executor"
 -- User-editable commands live in the LÖVE save directory.
 -- This makes them easy to locate and safe to write on all platforms.
 local commands_filename = "example.lua"
+local runtime_log_filename = "runtime.log"
+
+local function starts_with(s, prefix)
+    return type(s) == "string" and s:sub(1, #prefix) == prefix
+end
+
+local function write_log(level, message)
+    local line = ("[%0.3f] [%s] %s"):format(love.timer.getTime(), level, tostring(message))
+    print(line)
+    local ok, err = love.filesystem.append(runtime_log_filename, line .. "\n")
+    if not ok then
+        print(("[LOG-ERROR] failed to append %s: %s"):format(runtime_log_filename, tostring(err)))
+    end
+end
 
 local starter = [[
 -- commands.lua
@@ -33,6 +47,14 @@ local function make_sandbox_env()
         tonumber = tonumber,
         -- NOTE: we intentionally do not expose os/io/debug by default.
     }
+
+    env.print = function(...)
+        local parts = {}
+        for i = 1, select("#", ...) do
+            parts[i] = tostring(select(i, ...))
+        end
+        write_log("USER", table.concat(parts, "\t"))
+    end
    
     --[[
     Turtle API:
@@ -45,6 +67,7 @@ local function make_sandbox_env()
         - set_move_speed
         - set_turn_speed
         - pencolor
+        - bgcolor
         - pensize
         - speed
         
@@ -65,6 +88,7 @@ local function make_sandbox_env()
     env.set_move_speed = function(...) return turtle.set_move_speed(turtle, ...) end
     env.set_turn_speed = function(...) return turtle.set_turn_speed(turtle, ...) end
     env.pencolor = function(...) return turtle.pencolor(turtle, ...) end
+    env.bgcolor = function(...) return turtle.bgcolor(turtle, ...) end
     env.pensize = function(...) return turtle.pensize(turtle, ...) end
     env.speed = function(...) return turtle.speed(turtle, ...) end
 
@@ -93,6 +117,11 @@ local function run_commands_file()
 
     local env = make_sandbox_env()
     local entry, err = executor.run_file(commands_filename, env)
+    if not entry then
+        write_log("ERROR", ("failed to run %s: %s"):format(commands_filename, tostring(err)))
+    else
+        write_log("INFO", ("started %s"):format(commands_filename))
+    end
 end
 
 -- ===== LÖVE callbacks =====
@@ -100,6 +129,18 @@ end
 function love.load()
     love.window.setTitle("LOVE Turtle — file-driven")
     love.graphics.setFont(love.graphics.newFont(14))
+
+    -- Set a stable save identity so logs always go to a known directory.
+    love.filesystem.setIdentity("tlc-final")
+
+    local save_dir = love.filesystem.getSaveDirectory()
+    local ok, err = love.filesystem.write(runtime_log_filename, "")
+    if not ok then
+        print(("[LOG-ERROR] failed to create %s: %s"):format(runtime_log_filename, tostring(err)))
+    end
+    write_log("INFO", "session started")
+    write_log("INFO", ("save dir: %s"):format(tostring(save_dir)))
+    write_log("INFO", ("log file: %s/%s"):format(tostring(save_dir), runtime_log_filename))
 
     turtle.init()
 
@@ -117,6 +158,16 @@ function love.update(dt)
     end
 -- call the executor's update file to... what?
     local msgs = executor.update(dt)
+    for i = 1, #msgs do
+        local msg = msgs[i]
+        if starts_with(msg, "error") then
+            write_log("ERROR", msg)
+        elseif starts_with(msg, "warning") then
+            write_log("WARN", msg)
+        elseif starts_with(msg, "finished") then
+            write_log("INFO", msg)
+        end
+    end
 end
 
 

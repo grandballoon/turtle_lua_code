@@ -4,48 +4,24 @@
 
 local executor = {}
 
--- number of VM instructions before a forced yield
-executor.instruction_limit = 20000
-
 -- From Codex: "fariness cap per Love frame."
 executor.max_resumes_per_frame = 6
 
 local coros = {} -- list of { co = coroutine, name = <>, status = "running"/"dead"/"error", last_err = str }
 
---[[
-Per Codex:
-- Returns function that will run inside coroutine.
-- Temporarily exposes yield to user script via env.yield
-- Installs debug hook: every "limit" instructions, force coroutine.yield("__INSTR_HOOK_YIELD__")
-- Runs script with pcall(chunk) so runtime can catch script errors.
-- Always clears hook and env.yield afterward
-- Re-throws error in script failed.
-]]
 local function make_wrapper(chunk, env, name)
-    -- same limit as set up above
-    local limit = executor.instruction_limit
-
     -- this is the body of the coroutine.
     return function()
         -- expose yield to user env during execution
         env.yield = coroutine.yield
 
-        -- hook yields after 'limit' VM instructions
-        local function hook()
-            coroutine.yield("__INSTR_HOOK_YIELD__")
-        end
-        debug.sethook(hook, "", limit)
+        -- Run user code directly.
+        -- NOTE: We intentionally do not use debug-hook forced yielding here;
+        -- in LuaJIT this can raise "attempt to yield across C-call boundary".
+        chunk()
 
-        -- chunk called in body of coroutine
-        local ok, err = pcall(chunk)
-
-        -- clear hook and env.yield
-        debug.sethook() 
+        -- clear env.yield on normal completion
         env.yield = nil
-
-        if not ok then
-            error(err)
-        end
         -- end of chunk; coroutine dies (I guess this means it's garbage-collected?)
     end
 end
@@ -69,7 +45,14 @@ function executor.run_string(code, name, env)
     local co = coroutine.create(wrapped)
 
     -- create an entry record with more details, and add it to the list of coroutines. chunk itself is called inside co.
-    local entry = { co = co, name = name or "user_code", status = "running", last_err = nil }
+    local entry = {
+        co = co,
+        env = env,
+        name = name or "user_code",
+        status = "running",
+        last_err = nil,
+        resume_count = 0
+    }
     table.insert(coros, entry)
     return entry
 end
@@ -120,28 +103,25 @@ function executor.update(dt)
             local ok, res = coroutine.resume(co)
     -- increment resume counter
             resumes = resumes + 1 
+            e.resume_count = e.resume_count + 1
     -- if resume throws an error, change its status, insert an error message, and remove the coroutine
             if not ok then
                 e.status = "error"
                 e.last_err = tostring(res)
+                if e.env then e.env.yield = nil end
                 table.insert(messages, ("error in %s: %s"):format(e.name, tostring(res)))
                 e._remove = true
             else
-    -- some kind of conditional on the "__INSTR_HOOK_YIELD__" res
-                if res == "__INSTR_HOOK_YIELD__" then
-                    e.status = "running"
-                    table.insert(messages, ("preempted: %s"):format(e.name))
-                else
     -- normal yield or nil -> still running or finished
-                    if coroutine.status(co) == "dead" then
-                        e.status = "dead"
-                        table.insert(messages, ("finished: %s"):format(e.name))
-        -- remove the dead coroutine
-                        e._remove = true                                        
-                    else
-                        e.status = "running"
-                        table.insert(messages, ("yielded: %s"):format(e.name))
-                    end
+                if coroutine.status(co) == "dead" then
+                    e.status = "dead"
+                    if e.env then e.env.yield = nil end
+                    table.insert(messages, ("finished: %s"):format(e.name))
+    -- remove the dead coroutine
+                    e._remove = true                                        
+                else
+                    e.status = "running"
+                    table.insert(messages, ("yielded: %s"):format(e.name))
                 end
             end
         end

@@ -4,6 +4,7 @@ local turtle = {
     x = 400, y = 300, angle = 0,
     penDown = true,
     penColor = {1,1,1,1},
+    bgColor = {0.07, 0.07, 0.07, 1},
     penSize = 2,
 
     canvas = nil,
@@ -37,6 +38,7 @@ function turtle.reset()
     turtle.angle = 0
     turtle.penDown = true
     turtle.penColor = {1,1,1,1}
+    turtle.bgColor = {0.07, 0.07, 0.07, 1}
     turtle.penSize = 2
     turtle.actions = {}
     turtle.current = nil
@@ -90,8 +92,11 @@ function turtle.penup(self) self.penDown = false end
 function turtle.pendown(self) self.penDown = true end
 
 function turtle.pencolor(self, r,g,b,a)
-    a = a or 1
-    self.penColor = {r or 1, g or 1, b or 1, a}
+    table.insert(self.actions, { type="pencolor", r = r, g = g, b = b, a = a })
+end
+
+function turtle.bgcolor(self, r,g,b,a)
+    table.insert(self.actions, { type="bgcolor", r = r, g = g, b = b, a = a })
 end
 
 function turtle.pensize(self, s)
@@ -114,9 +119,42 @@ end
 
 -- update: animate actions with continuous interpolation
 function turtle.update(dt)
-    start_next(turtle)
+    -- Consume any instant actions first so state changes (like pencolor)
+    -- happen in-order before the next animated action.
+    while true do
+        start_next(turtle)
+        local instant = turtle.current
+        if not instant then return end
+        if instant.type == "pencolor" or instant.type == "bgcolor" then
+            local r = instant.r
+            local g = instant.g
+            local b = instant.b
+            local a = instant.a
+
+            -- Accept either 0..1 or 0..255 channel inputs.
+            if type(r) == "number" and r > 1 then r = r / 255 end
+            if type(g) == "number" and g > 1 then g = g / 255 end
+            if type(b) == "number" and b > 1 then b = b / 255 end
+            if a == nil then a = 1 end
+            if type(a) == "number" and a > 1 then a = a / 255 end
+
+            r = (type(r) == "number") and math.max(0, math.min(1, r)) or 1
+            g = (type(g) == "number") and math.max(0, math.min(1, g)) or 1
+            b = (type(b) == "number") and math.max(0, math.min(1, b)) or 1
+            a = (type(a) == "number") and math.max(0, math.min(1, a)) or 1
+
+            if instant.type == "pencolor" then
+                turtle.penColor = {r, g, b, a}
+            else
+                turtle.bgColor = {r, g, b, a}
+            end
+            turtle.current = nil
+        else
+            break
+        end
+    end
+
     local a = turtle.current
-    if not a then return end
 
     if a.type == "move" then
         local remaining = a.remaining
@@ -174,7 +212,7 @@ end
 -- draw: canvas + turtle head
 function turtle.draw()
     -- background
-    love.graphics.clear(0.07, 0.07, 0.07, 1)
+    love.graphics.clear(turtle.bgColor)
 
     -- persistent trail canvas
     if turtle.canvas then
