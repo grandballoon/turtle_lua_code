@@ -113,6 +113,11 @@ local function start_next(t)
     if nxt then
         -- attach effective speed (resolved in update)
         nxt.started = true
+        if nxt.type == "move" then
+            -- Remember where this stroke starts so we can commit it once.
+            nxt.start_x = t.x
+            nxt.start_y = t.y
+        end
         t.current = nxt
     end
 end
@@ -168,26 +173,29 @@ function turtle.update(dt)
         end
         if math.abs(step) > math.abs(remaining) then step = remaining end
 
-        local oldx, oldy = turtle.x, turtle.y
         local rad = math.rad(turtle.angle)
         turtle.x = turtle.x + math.cos(rad) * step
         turtle.y = turtle.y + math.sin(rad) * step
 
-        if turtle.penDown then
-            -- record segment
-            table.insert(turtle.segments, {oldx, oldy, turtle.x, turtle.y, turtle.penColor, turtle.penSize})
-            -- draw immediately into canvas for persistence
-            love.graphics.setCanvas(turtle.canvas)
-            love.graphics.setBlendMode("alpha")
-            love.graphics.setLineWidth(turtle.penSize)
-            love.graphics.setColor(turtle.penColor)
-            love.graphics.line(oldx, oldy, turtle.x, turtle.y)
-            love.graphics.setCanvas()
-            love.graphics.setBlendMode("alpha")
-        end
-
         a.remaining = a.remaining - step
-        if a.remaining == 0 or math.abs(a.remaining) < 1e-6 then turtle.current = nil end
+        if a.remaining == 0 or math.abs(a.remaining) < 1e-6 then
+            if turtle.penDown then
+                local sx = a.start_x or turtle.x
+                local sy = a.start_y or turtle.y
+                -- Record one segment per move to avoid alpha seams from
+                -- frame-by-frame accumulation.
+                table.insert(turtle.segments, {sx, sy, turtle.x, turtle.y, turtle.penColor, turtle.penSize})
+                -- Commit stroke once into the persistent canvas.
+                love.graphics.setCanvas(turtle.canvas)
+                love.graphics.setBlendMode("alpha")
+                love.graphics.setLineWidth(turtle.penSize)
+                love.graphics.setColor(turtle.penColor)
+                love.graphics.line(sx, sy, turtle.x, turtle.y)
+                love.graphics.setCanvas()
+                love.graphics.setBlendMode("alpha")
+            end
+            turtle.current = nil
+        end
 
     elseif a.type == "turn" then
         local remaining = a.remaining
@@ -218,6 +226,17 @@ function turtle.draw()
     if turtle.canvas then
         love.graphics.setColor(1,1,1,1)
         love.graphics.draw(turtle.canvas, 0, 0)
+    end
+
+    -- Draw in-progress move as a preview so animation still appears smooth.
+    if turtle.current and turtle.current.type == "move" and turtle.penDown then
+        local a = turtle.current
+        local sx = a.start_x or turtle.x
+        local sy = a.start_y or turtle.y
+        love.graphics.setBlendMode("alpha")
+        love.graphics.setLineWidth(turtle.penSize)
+        love.graphics.setColor(turtle.penColor)
+        love.graphics.line(sx, sy, turtle.x, turtle.y)
     end
 
     -- turtle head

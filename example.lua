@@ -37,14 +37,39 @@ function lc()
     lcircle()
 end
 
-pencolor(245/255, 40/255, 145/255, 1.0)
+
+function outward_spiral()
+   for i = 360, 1, -1 do
+        fd(2)
+        rt(1 * (i / 100))
+   end
+end
+
+function diminishing_spiral(scale)
+    for i = 1, scale do
+        fd(2)
+        rt(1 * (i / 100))
+    end
+end
+
+fraction1 = 10/100
+fraction2 = 50/100
+fraction3 = 40/100
+
+function fraction_circle(frac)
+    for i = 1, (360 * frac) do
+        fd(1)
+        rt(1)
+    end
+end
+
+set_move_speed(100)
+rcircle()
+pencolor(240/255, 100/255, 150/255, 0.7)
+fraction_circle(fraction1)
+pencolor(100/255, 255/255, 150/255, 0.7)
+fraction_circle(fraction2)
+pencolor(100/255, 100/255, 255/255, 0.7)
+fraction_circle(fraction3)
+rt(90)
 fd(100)
-rt(360)
-pencolor(145/255, 245/255, 40/255, 1.0)
-square()
-bgcolor(245/255, 40/255, 145/255, 1.0)
-rc()
-rt(30)
-square()
-rc()
-rt(30)
