@@ -1,75 +1,13 @@
 -- example.lua
--- Edit this in Sublime/VS Code
 
 
+-- These greyed-out lines are comments; they don't run any code.
+-- A beginner challenge: try to complete the square. 
+-- Type "love ." in the terminal at the bottom, and then hit enter, to run the program.
 
-
-function square()
-    forward(100)
-    right(90)
-    forward(100)
-    right(90)
-    forward(100)
-    right(90)
-    forward(100)
-    right(90)
-end
-
-function rcircle()
-    for i = 1, 360 do
-        fd(1)
-        rt(1)
-    end
-end
-
-function lcircle()
-    for i = 1, 360 do
-        fd(1)
-        lt(1)
-    end
-end
-
-function rc()
-    rcircle()
-end
-
-function lc()
-    lcircle()
-end
-
-
-function outward_spiral()
-   for i = 360, 1, -1 do
-        fd(2)
-        rt(1 * (i / 100))
-   end
-end
-
-function diminishing_spiral(scale)
-    for i = 1, scale do
-        fd(2)
-        rt(1 * (i / 100))
-    end
-end
-
-fraction1 = 10/100
-fraction2 = 50/100
-fraction3 = 40/100
-
-function fraction_circle(frac)
-    for i = 1, (360 * frac) do
-        fd(1)
-        rt(1)
-    end
-end
-
-set_move_speed(100)
-rcircle()
-pencolor(240/255, 100/255, 150/255, 0.7)
-fraction_circle(fraction1)
-pencolor(100/255, 255/255, 150/255, 0.7)
-fraction_circle(fraction2)
-pencolor(100/255, 100/255, 255/255, 0.7)
-fraction_circle(fraction3)
-rt(90)
-fd(100)
+forward(100)        -- move forward 100 units
+right(90)           -- turn right by 90 degrees.
+forward(100)
+left(90)
+pensize(10)
+forward(100)

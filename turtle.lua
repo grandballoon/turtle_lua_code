@@ -27,7 +27,7 @@ function turtle.init()
     local w,h = love.graphics.getDimensions()
     turtle.canvas = love.graphics.newCanvas(w,h, {msaa = turtle.msaa}) -- set turtle.canvas equal to a newCanvas(w, h, antiAliasing)
     love.graphics.setLineStyle("smooth")
-    love.graphics.setLineJoin("miter")
+    love.graphics.setLineJoin("bevel")
     turtle.reset()
 end
 
