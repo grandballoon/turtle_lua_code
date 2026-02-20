@@ -4,6 +4,7 @@ local turtle = {
     x = 400, y = 300, angle = 0,
     penDown = true,
     penColor = {1,1,1,1},
+    bgColor = {0.07, 0.07, 0.07, 1},
     penSize = 2,
 
     canvas = nil,
@@ -26,7 +27,7 @@ function turtle.init()
     local w,h = love.graphics.getDimensions()
     turtle.canvas = love.graphics.newCanvas(w,h, {msaa = turtle.msaa}) -- set turtle.canvas equal to a newCanvas(w, h, antiAliasing)
     love.graphics.setLineStyle("smooth")
-    love.graphics.setLineJoin("miter")
+    love.graphics.setLineJoin("bevel")
     turtle.reset()
 end
 
@@ -37,6 +38,7 @@ function turtle.reset()
     turtle.angle = 0
     turtle.penDown = true
     turtle.penColor = {1,1,1,1}
+    turtle.bgColor = {0.07, 0.07, 0.07, 1}
     turtle.penSize = 2
     turtle.actions = {}
     turtle.current = nil
@@ -90,8 +92,11 @@ function turtle.penup(self) self.penDown = false end
 function turtle.pendown(self) self.penDown = true end
 
 function turtle.pencolor(self, r,g,b,a)
-    a = a or 1
-    self.penColor = {r or 1, g or 1, b or 1, a}
+    table.insert(self.actions, { type="pencolor", r = r, g = g, b = b, a = a })
+end
+
+function turtle.bgcolor(self, r,g,b,a)
+    table.insert(self.actions, { type="bgcolor", r = r, g = g, b = b, a = a })
 end
 
 function turtle.pensize(self, s)
@@ -108,15 +113,53 @@ local function start_next(t)
     if nxt then
         -- attach effective speed (resolved in update)
         nxt.started = true
+        if nxt.type == "move" then
+            -- Remember where this stroke starts so we can commit it once.
+            nxt.start_x = t.x
+            nxt.start_y = t.y
+        end
         t.current = nxt
     end
 end
 
 -- update: animate actions with continuous interpolation
 function turtle.update(dt)
-    start_next(turtle)
+    -- Consume any instant actions first so state changes (like pencolor)
+    -- happen in-order before the next animated action.
+    while true do
+        start_next(turtle)
+        local instant = turtle.current
+        if not instant then return end
+        if instant.type == "pencolor" or instant.type == "bgcolor" then
+            local r = instant.r
+            local g = instant.g
+            local b = instant.b
+            local a = instant.a
+
+            -- Accept either 0..1 or 0..255 channel inputs.
+            if type(r) == "number" and r > 1 then r = r / 255 end
+            if type(g) == "number" and g > 1 then g = g / 255 end
+            if type(b) == "number" and b > 1 then b = b / 255 end
+            if a == nil then a = 1 end
+            if type(a) == "number" and a > 1 then a = a / 255 end
+
+            r = (type(r) == "number") and math.max(0, math.min(1, r)) or 1
+            g = (type(g) == "number") and math.max(0, math.min(1, g)) or 1
+            b = (type(b) == "number") and math.max(0, math.min(1, b)) or 1
+            a = (type(a) == "number") and math.max(0, math.min(1, a)) or 1
+
+            if instant.type == "pencolor" then
+                turtle.penColor = {r, g, b, a}
+            else
+                turtle.bgColor = {r, g, b, a}
+            end
+            turtle.current = nil
+        else
+            break
+        end
+    end
+
     local a = turtle.current
-    if not a then return end
 
     if a.type == "move" then
         local remaining = a.remaining
@@ -130,26 +173,29 @@ function turtle.update(dt)
         end
         if math.abs(step) > math.abs(remaining) then step = remaining end
 
-        local oldx, oldy = turtle.x, turtle.y
         local rad = math.rad(turtle.angle)
         turtle.x = turtle.x + math.cos(rad) * step
         turtle.y = turtle.y + math.sin(rad) * step
 
-        if turtle.penDown then
-            -- record segment
-            table.insert(turtle.segments, {oldx, oldy, turtle.x, turtle.y, turtle.penColor, turtle.penSize})
-            -- draw immediately into canvas for persistence
-            love.graphics.setCanvas(turtle.canvas)
-            love.graphics.setBlendMode("alpha")
-            love.graphics.setLineWidth(turtle.penSize)
-            love.graphics.setColor(turtle.penColor)
-            love.graphics.line(oldx, oldy, turtle.x, turtle.y)
-            love.graphics.setCanvas()
-            love.graphics.setBlendMode("alpha")
-        end
-
         a.remaining = a.remaining - step
-        if a.remaining == 0 or math.abs(a.remaining) < 1e-6 then turtle.current = nil end
+        if a.remaining == 0 or math.abs(a.remaining) < 1e-6 then
+            if turtle.penDown then
+                local sx = a.start_x or turtle.x
+                local sy = a.start_y or turtle.y
+                -- Record one segment per move to avoid alpha seams from
+                -- frame-by-frame accumulation.
+                table.insert(turtle.segments, {sx, sy, turtle.x, turtle.y, turtle.penColor, turtle.penSize})
+                -- Commit stroke once into the persistent canvas.
+                love.graphics.setCanvas(turtle.canvas)
+                love.graphics.setBlendMode("alpha")
+                love.graphics.setLineWidth(turtle.penSize)
+                love.graphics.setColor(turtle.penColor)
+                love.graphics.line(sx, sy, turtle.x, turtle.y)
+                love.graphics.setCanvas()
+                love.graphics.setBlendMode("alpha")
+            end
+            turtle.current = nil
+        end
 
     elseif a.type == "turn" then
         local remaining = a.remaining
@@ -174,12 +220,23 @@ end
 -- draw: canvas + turtle head
 function turtle.draw()
     -- background
-    love.graphics.clear(0.07, 0.07, 0.07, 1)
+    love.graphics.clear(turtle.bgColor)
 
     -- persistent trail canvas
     if turtle.canvas then
         love.graphics.setColor(1,1,1,1)
         love.graphics.draw(turtle.canvas, 0, 0)
+    end
+
+    -- Draw in-progress move as a preview so animation still appears smooth.
+    if turtle.current and turtle.current.type == "move" and turtle.penDown then
+        local a = turtle.current
+        local sx = a.start_x or turtle.x
+        local sy = a.start_y or turtle.y
+        love.graphics.setBlendMode("alpha")
+        love.graphics.setLineWidth(turtle.penSize)
+        love.graphics.setColor(turtle.penColor)
+        love.graphics.line(sx, sy, turtle.x, turtle.y)
     end
 
     -- turtle head
