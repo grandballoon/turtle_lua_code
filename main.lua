@@ -91,6 +91,7 @@ local function make_sandbox_env()
     env.bgcolor = function(...) return turtle.bgcolor(turtle, ...) end
     env.pensize = function(...) return turtle.pensize(turtle, ...) end
     env.speed = function(...) return turtle.speed(turtle, ...) end
+    env.circle = function(...) return turtle.circle(turtle, ...) end
 
     return env
 end
