@@ -27,19 +27,3 @@ function filewatcher.check_and_reset()
 end
 
 return filewatcher
-
---[[
-NOTES
-
-Don't know why init is called init; it doesn't initialize the file, it just sets the last_modified time. Must
-be dependent on an initialization pattern in another file.
-
-Don't know why the same 'info' variable initialization happens in both methods.
-
-So check_and_reset only checks and resets the modtime; it doesn't reset the file. It's a "reset yourself" message
-to some other part of the codebase. OK, this file is less important than I thought, I will come back to it. I feel like
-it could probably just be one function that returns true or false.
-
-Steps:
-
-]]

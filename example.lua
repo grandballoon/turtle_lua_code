@@ -12,6 +12,6 @@ right(150)
 
 forward(450)
 for x = 1, 180 do
-    fd(2)
-    rt(3)
+    fd(3)
+    rt(5)
 end
