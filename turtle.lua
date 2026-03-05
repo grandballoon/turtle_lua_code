@@ -1,7 +1,9 @@
 -- turtle.lua
 local turtle = {
     -- position & rendering
-    x = 400, y = 300, angle = 0,
+    -- x and y are set to ORIGIN in turtle.init(); 0 here is just a pre-init placeholder
+    x = 0, y = 0, angle = 0,
+    ORIGIN = { x = 0, y = 0 },  -- set to window center in turtle.init()
     penDown = true,
     penColor = {1, 1, 1, 1},
     bgColor = {0.07, 0.07, 0.07, 1},
@@ -124,6 +126,7 @@ end
 
 function turtle.init()
     local w, h = love.graphics.getDimensions()
+    turtle.ORIGIN = { x = w / 2, y = h / 2 }
     turtle.canvas = love.graphics.newCanvas(w, h, {msaa = turtle.msaa})
     love.graphics.setLineStyle("smooth")
     love.graphics.setLineJoin("bevel")
@@ -131,8 +134,8 @@ function turtle.init()
 end
 
 function turtle.reset()
-    turtle.x = 400
-    turtle.y = 300
+    turtle.x = turtle.ORIGIN.x
+    turtle.y = turtle.ORIGIN.y
     turtle.angle = 0
     turtle.penDown = true
     turtle.penColor = {1, 1, 1, 1}
@@ -228,6 +231,33 @@ function turtle.circle(self, radius)
     })
 end
 
+-- Convert user-facing center-origin cartesian coordinates to LÖVE screen
+-- coordinates. Negates y so positive y is up, as learners expect.
+local function to_screen(origin, x, y)
+    return x + origin.x, -y + origin.y
+end
+
+-- goto(x, y): animate turtle to destination, orienting toward it first.
+-- Respects pen state — draws if pen is down. Heading after arrival is the
+-- direction traveled. Coordinates are center-origin: (0,0) is the middle
+-- of the window, positive y is down (screen space).
+function turtle.goto(self, x, y)
+    local sx, sy = to_screen(self.ORIGIN, x or 0, y or 0)
+    table.insert(self.actions, { type="goto", tx = sx, ty = sy })
+end
+
+-- teleport(x, y): instantly move to destination, never draws, never changes
+-- heading. Same coordinate convention as goto.
+function turtle.teleport(self, x, y)
+    local sx, sy = to_screen(self.ORIGIN, x or 0, y or 0)
+    table.insert(self.actions, { type="teleport", tx = sx, ty = sy })
+end
+
+-- home(): teleport to origin and reset heading. Never draws.
+function turtle.home(self)
+    table.insert(self.actions, { type="home" })
+end
+
 function turtle.set_move_speed(self, v) self.base_move_speed = tonumber(v) or self.base_move_speed end
 function turtle.set_turn_speed(self, v) self.base_turn_speed = tonumber(v) or self.base_turn_speed end
 
@@ -259,6 +289,8 @@ local INSTANT = {
     pensize  = true,
     pencolor = true,
     bgcolor  = true,
+    teleport = true,
+    home     = true,
 }
 
 function turtle.update(dt)
@@ -290,6 +322,16 @@ function turtle.update(dt)
         elseif a.type == "bgcolor" then
             local c = resolve_color(a.r, a.g, a.b, a.a)
             if c then turtle.bgColor = c end
+
+        elseif a.type == "teleport" then
+            turtle.x = a.tx
+            turtle.y = a.ty
+            -- heading intentionally unchanged
+
+        elseif a.type == "home" then
+            turtle.x     = turtle.ORIGIN.x
+            turtle.y     = turtle.ORIGIN.y
+            turtle.angle = 0
         end
 
         turtle.current = nil
@@ -322,6 +364,54 @@ function turtle.update(dt)
                 love.graphics.setBlendMode("alpha")
             end
             turtle.current = nil
+        end
+
+    -- ---- goto ----
+    -- Orients toward destination then travels in a straight line.
+    -- start_x/start_y are captured when the action is first picked up
+    -- (in start_next), so we compute heading and distance on first tick.
+    elseif a.type == "goto" then
+        -- One-time setup on first tick.
+        if not a.dist then
+            local dx = a.tx - turtle.x
+            local dy = a.ty - turtle.y
+            a.dist      = math.sqrt(dx * dx + dy * dy)
+            a.remaining = a.dist
+            a.heading   = math.deg(math.atan2(dy, dx))
+            turtle.angle = a.heading % 360
+            a.start_x   = turtle.x
+            a.start_y   = turtle.y
+        end
+
+        if a.dist < 1e-6 then
+            -- Already at destination.
+            turtle.current = nil
+        else
+            local speed = move_speed_for(turtle)
+            local step  = (speed == math.huge) and a.remaining or (speed * dt)
+            if step > a.remaining then step = a.remaining end
+
+            local rad = math.rad(turtle.angle)
+            turtle.x = turtle.x + math.cos(rad) * step
+            turtle.y = turtle.y + math.sin(rad) * step
+            a.remaining = a.remaining - step
+
+            if a.remaining < 1e-6 then
+                turtle.x = a.tx
+                turtle.y = a.ty
+                if turtle.penDown then
+                    local sx, sy = a.start_x, a.start_y
+                    table.insert(turtle.segments, {sx, sy, turtle.x, turtle.y, turtle.penColor, turtle.penSize})
+                    love.graphics.setCanvas(turtle.canvas)
+                    love.graphics.setBlendMode("alpha")
+                    love.graphics.setLineWidth(turtle.penSize)
+                    love.graphics.setColor(turtle.penColor)
+                    love.graphics.line(sx, sy, turtle.x, turtle.y)
+                    love.graphics.setCanvas()
+                    love.graphics.setBlendMode("alpha")
+                end
+                turtle.current = nil
+            end
         end
 
     -- ---- turn ----
@@ -397,8 +487,9 @@ function turtle.draw()
         love.graphics.draw(turtle.canvas, 0, 0)
     end
 
-    -- Preview the in-progress move so animation looks smooth between commits.
-    if turtle.current and turtle.current.type == "move" and turtle.penDown then
+    -- Preview the in-progress move or goto so animation looks smooth between commits.
+    if turtle.current and turtle.penDown and
+       (turtle.current.type == "move" or turtle.current.type == "goto") then
         local a = turtle.current
         local sx = a.start_x or turtle.x
         local sy = a.start_y or turtle.y
