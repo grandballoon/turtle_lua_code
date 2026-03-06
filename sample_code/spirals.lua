@@ -11,3 +11,6 @@ function diminishing_spiral(scale)
         rt(1 * (i / 100))
     end
 end
+
+
+outward_spiral()

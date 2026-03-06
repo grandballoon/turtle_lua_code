@@ -10,8 +10,12 @@ goto(0,0)
 goto(250, -250)
 right(150)
 
-forward(450)
-for x = 1, 180 do
-    fd(3)
-    rt(5)
-end
+fd(150)
+pencolor("yellow")
+rt(15)
+fd(150)
+
+for i=1, 360 do
+	fd(1)
+	rt(2)
+end	
