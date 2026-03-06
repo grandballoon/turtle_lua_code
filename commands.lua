@@ -1,9 +1,3 @@
---[[ 
-Try writing some turtle commands from the README below. 
-If you've installed the Lua + Love build system described in the README,
-you'll see helpful autocomplete suggestions when you type.
-
-These lines inside brackets are comments; they don't do anything. 
-It's OK to delete them.
-]]
-
+-- Edit this file in any text editor and save to see the turtle redraw.
+-- Try: forward(100), right(90), circle(50), pencolor("red")
+-- See the README for the full list of commands.
