@@ -34,3 +34,40 @@ end
 You can drag any `.lua` file onto the turtle window to run it. The app will start watching that file for changes instead. This is helpful if you'd like to store your code in a particular place, but still have it easily accessible from the Turtle app.
 
 
+# Setup
+
+## What You Need
+
+1. **Turtle Graphics** — the app (you probably already have it if you're reading this)
+2. **Sublime Text** — a text editor for writing your code
+
+## Installing Sublime Text
+
+Download Sublime Text from [sublimetext.com/download](https://sublimetext.com/download). It's free to use.
+
+**Mac:** Open the downloaded file and drag Sublime Text to your Applications folder.
+
+**Windows:** Run the installer and follow the prompts.
+
+## Setting Up Sublime Text
+
+1. Open Sublime Text.
+2. Press Cmd+Shift+P (Mac) or Ctrl+Shift+P (Windows) to open the Command Palette.
+3. Type "Install Package Control" and hit Enter. Wait a few seconds.
+4. Open the Command Palette again, type "Install Package" and hit Enter.
+5. When the second input field appears, type "Lua Love" and select it.
+
+## Making Sublime the Default Editor
+
+**Mac:** Right-click any `.lua` file in Finder → Get Info → under "Open With," select Sublime Text → click "Change All."
+
+**Windows:** Right-click any `.lua` file → Open With → Choose Another App → select Sublime Text → check "Always use this app."
+
+## Using It
+
+1. Open the Turtle Graphics app.
+2. Click "Open in Editor" in the top-right corner. Your code opens in Sublime Text.
+3. Edit the code, save (Cmd+S or Ctrl+S), and watch the turtle redraw.
+4. You can drag and drop any valid file of lua code, ending in `.lua`, onto the Turtle window to run that code. That file, in whatever location on your computer, will be the one to load the next time you click "Open in Editor."
+
+That's it. You're ready to go.
