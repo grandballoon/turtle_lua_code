@@ -1,21 +1,9 @@
-pencolor("red")
-teleport(100, 100)
-forward(200)
+--[[ 
+Try writing some turtle commands from the README below. 
+If you've installed the Lua + Love build system described in the README,
+you'll see helpful autocomplete suggestions when you type.
 
-home()
-pencolor("sky blue")
-forward(80)
-goto(100,100)
-goto(0,0)
-goto(250, -250)
-right(150)
+These lines inside brackets are comments; they don't do anything. 
+It's OK to delete them.
+]]
 
-fd(150)
-pencolor("yellow")
-rt(15)
-fd(150)
-
-for i=1, 360 do
-	fd(1)
-	rt(2)
-end	
